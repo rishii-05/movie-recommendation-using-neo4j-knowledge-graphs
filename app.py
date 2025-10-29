@@ -3,10 +3,10 @@ from neo4j import GraphDatabase
 import pandas as pd
 
 # --- NEO4J CONNECTION DETAILS ---
-URI = ""your_uri_here""
+URI = "your_uri_here"
 USER = "neo4j"
 # IMPORTANT: Replace with your password
-PASSWORD = ""your_password_here"" 
+PASSWORD = "your_password_here" 
 
 # --- HELPER FUNCTIONS ---
 
