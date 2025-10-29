@@ -28,6 +28,14 @@ def run_query(driver, query, params={}):
         result = session.run(query, params)
         return pd.DataFrame([r.data() for r in result])
 
+@st.cache_data
+def get_all_movie_titles(_driver):
+    """Fetches all movie titles from Neo4j, caches the result."""
+    print("Caching all movie titles...")
+    query = "MATCH (m:Movie) RETURN m.title AS title ORDER BY title"
+    df = run_query(_driver, query)
+    return df['title'].tolist()
+
 # --- DEFINE THE QUERIES ---
 
 # Basic Semantic Query (Shared Actors & Genres)
@@ -53,26 +61,30 @@ st.write("Powered by Neo4j Knowledge Graph")
 driver = get_driver()
 
 if driver:
-    # Get user input
-    movie_title = st.text_input("Enter a movie title you like (e.g., Inception, The Matrix, Avatar):")
+    # 1. Fetch the full list of movies
+    movie_list = get_all_movie_titles(driver)
+    
+    # 2. Add a "placeholder" at the top of the list
+    movie_list.insert(0, "--- Type or select a movie ---")
 
-    if movie_title:
-        # Check that the movie exists in the DB
-        movie_exists_df = run_query(driver, "MATCH (m:Movie) WHERE toLower(m.title) = toLower($title) RETURN m.title AS title", {'title': movie_title})
+    # 3. Create the selectbox (this replaces st.text_input)
+    movie_title = st.selectbox(
+        "Enter a movie title you like (e.g., Inception, The Matrix, Avatar):",
+        options=movie_list
+    )
 
-        if movie_exists_df.empty:
-            st.error(f"Movie '{movie_title}' not found in the database. Check capitalization and spelling.")
-        else:
-            # --- Basic Recommendations ---
-            st.subheader("Basic Recommendations (Shared Actors & Genres)")
-            with st.spinner("Finding recommendations based on actors and genres..."):
-                basic_df = run_query(driver, basic_rec_query, {'title': movie_title})
-                if basic_df.empty:
-                    st.write("No basic recommendations found.")
-                else:
-                    basic_df.index += 1
-                    st.dataframe(basic_df, use_container_width=True)
-            
+    # Check if a real movie was selected 
+    if movie_title != "--- Type or select a movie ---":
+        # --- Basic Recommendations ---
+        st.subheader("Basic Recommendations (Shared Actors & Genres)")
+        with st.spinner("Finding recommendations based on actors and genres..."):
+            basic_df = run_query(driver, basic_rec_query, {'title': movie_title})
+            if basic_df.empty:
+                st.write("No basic recommendations found.")
+            else:
+                basic_df.index += 1 # Start index from 1
+                st.dataframe(basic_df, use_container_width=True)
+         
 
     # Clean up the driver connection when the app closes
     # This part might not be strictly necessary for Streamlit, but it's good practice.
